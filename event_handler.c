@@ -28,8 +28,8 @@ typedef struct {
     window_t    win;
     char        cont_expr_str[128];
     char        end_expr_str[128];
-    char        cont_action[32];
-    char        end_action[32];
+    char        cont_actions[256];
+    char        end_actions[256];
 } rule_t;
 
 typedef enum {
@@ -113,12 +113,12 @@ void load_rules(const char *file)
         rule_t *r = &rules[rule_count];
 
         char window[64], cont_expr[128], end_expr[128];
-        char cont_action[32], end_action[32];
+        char cont_actions[256], end_actions[256];
         char start[16], end[16];
 
         sscanf(line,
-               " %63[^|] | %127[^|] | %127[^|] | %31[^|] | %31[^\n]",
-               window, cont_expr, end_expr, cont_action, end_action);
+               " %63[^|] | %127[^|] | %127[^|] | %255[^|] | %255[^\n]",
+               window, cont_expr, end_expr, cont_actions, end_actions);
 
         sscanf(window, "%15[^-]-%15s", start, end);
         r->win.start_min = parse_time(start);
@@ -126,8 +126,8 @@ void load_rules(const char *file)
 
         strcpy(r->cont_expr_str, cont_expr);
         strcpy(r->end_expr_str, end_expr);
-        strcpy(r->cont_action, cont_action);
-        strcpy(r->end_action, end_action);
+        strcpy(r->cont_actions, cont_actions);
+        strcpy(r->end_actions, end_actions);
 
         rule_count++;
     }
@@ -146,11 +146,27 @@ void evaluate_rule(int rule_idx, checkmode_t mode)
     te_variable vars[] = { { "motion", &motion_val } };
 
     char *expr_str = (mode == MODE_CONT) ? r->cont_expr_str : r->end_expr_str;
-    char *action = (mode == MODE_CONT) ? r->cont_action : r->end_action;
+    char *actions_str = (mode == MODE_CONT) ? r->cont_actions : r->end_actions;
 
     te_expr *expr = te_compile(expr_str, vars, 1, NULL);
     if (expr && te_eval(expr)) {
-        printf("[%s] ACTION: %s (expr=%s, motion=%d)\n", get_time_string(), action, expr_str, motion);
+        /* Parse and execute comma-separated actions */
+        char actions_copy[256];
+        strcpy(actions_copy, actions_str);
+        
+        char *action = strtok(actions_copy, ",");
+        while (action != NULL) {
+            /* Trim whitespace from action */
+            while (*action == ' ') action++;
+            char *end_ptr = action + strlen(action) - 1;
+            while (end_ptr >= action && *end_ptr == ' ') {
+                *end_ptr = '\0';
+                end_ptr--;
+            }
+            
+            printf("[%s] ACTION: %s (expr=%s, motion=%d)\n", get_time_string(), action, expr_str, motion);
+            action = strtok(NULL, ",");
+        }
     }
     if (expr) te_free(expr);
 }
