@@ -1,0 +1,2 @@
+10:54-10:55 | motion > 3 | motion > 5 | WARNING | ERROR
+10:57-10:58| motion > 3 | motion > 5 | CRITICAL | FATAL
